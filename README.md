@@ -357,4 +357,4 @@ hash_final = hashlib.sha256(combinado.encode("utf-8")).hexdigest()
 
 ---
 
-*Documentación generada para uso académico · Calculadora Criptográfica · UTF-8 Compatible*
+* Calculadora Criptográfica · UTF-8 Compatible*
