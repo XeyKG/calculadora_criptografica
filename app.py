@@ -5,106 +5,423 @@ Requisitos: streamlit, pandas
 Ejecutar con: streamlit run app.py
 """
 
-import sys
-import os
+import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 
 import streamlit as st
 import pandas as pd
 
-# ── Importar módulos de funciones ────────────────────────────
 from functions.modular_math   import (calcular_modulo, calcular_inverso_aditivo,
                                        calcular_inverso_xor, calcular_mcd_e_inverso_mult,
                                        calcular_inverso_mult_tradicional, calcular_inverso_mult_aee)
 from functions.classic_crypto import (cifrado_mod27, cifrado_cesar, cifrado_vernam,
                                        cifrado_atbash, cifrado_transposicion_columnar,
                                        cifrado_afin, cifrado_sustitucion_simple)
-from functions.modern_crypto  import (calcular_diffie_hellman, calcular_rsa,
-                                       exponenciacion_rapida)
+from functions.modern_crypto  import (calcular_diffie_hellman, calcular_rsa, exponenciacion_rapida)
 from functions.hash_algorithms import calcular_md5, calcular_sha256, calcular_sha512
-from functions.encoding        import (ascii_codificar, ascii_decodificar,
-                                        hex_codificar, hex_decodificar,
-                                        binario_codificar, binario_decodificar,
+from functions.encoding        import (ascii_codificar, ascii_decodificar, hex_codificar,
+                                        hex_decodificar, binario_codificar, binario_decodificar,
                                         base64_codificar, base64_decodificar)
 from functions.salt_protocol   import salt_md5, salt_sha256, salt_sha512
 
-
 # ══════════════════════════════════════════════════════════════
-# CONFIGURACIÓN DE PÁGINA
+# CONFIG
 # ══════════════════════════════════════════════════════════════
-st.set_page_config(
-    page_title="Calculadora Criptográfica",
-    page_icon="🔐",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="CryptoLab", page_icon="🟣", layout="wide",
+                   initial_sidebar_state="expanded")
 
-# ── Estilos CSS personalizados ───────────────────────────────
 st.markdown("""
 <style>
-    .main-title   { font-size: 2.2rem; font-weight: 700; color: #1f77b4; }
-    .sub-title    { font-size: 1.1rem; color: #555; margin-top: -0.5rem; }
-    .result-box   { background:#f0f4ff; border-left:4px solid #1f77b4;
-                    padding:1rem; border-radius:6px; font-family:monospace; }
-    .step-box     { background:#f9f9f9; border-left:3px solid #4caf50;
-                    padding:0.8rem; border-radius:4px; font-family:monospace; font-size:0.9rem; }
-    .error-box    { background:#fff0f0; border-left:4px solid #e53935;
-                    padding:0.8rem; border-radius:4px; }
-    .badge        { display:inline-block; background:#1f77b4; color:white;
-                    padding:2px 10px; border-radius:12px; font-size:0.8rem; }
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@700;900&display=swap');
+
+/* ── BASE ─────────────────────────────────────────────────── */
+html, body, [class*="css"] {
+  font-family: 'Rajdhani', sans-serif !important;
+  font-size: 15px;
+}
+.stApp {
+  background-color: #080810;
+  background-image:
+    linear-gradient(rgba(124,58,237,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,58,237,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ── SIDEBAR ──────────────────────────────────────────────── */
+section[data-testid="stSidebar"] {
+  background: #0a0a18 !important;
+  border-right: 2px solid #7c3aed !important;
+}
+section[data-testid="stSidebar"]::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, #7c3aed, #10b981, #7c3aed);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+section[data-testid="stSidebar"] * { color: #c4b5fd !important; }
+section[data-testid="stSidebar"] .stSelectbox > div > div {
+  background: rgba(124,58,237,0.12) !important;
+  border: 1px solid #7c3aed !important;
+  border-radius: 6px !important;
+  color: #e9d5ff !important;
+}
+
+/* ── BLOQUE PRINCIPAL ─────────────────────────────────────── */
+.block-container { padding: 1.2rem 2rem 3rem !important; }
+
+/* ── LOGO SIDEBAR ─────────────────────────────────────────── */
+.sb-logo { padding: 1rem 0 0.5rem; text-align: center; }
+.sb-logo .brand {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 1.15rem; font-weight: 900;
+  color: #a855f7 !important;
+  text-shadow: 0 0 18px rgba(168,85,247,0.7);
+  letter-spacing: 0.12em;
+}
+.sb-logo .tagline { font-size: 0.7rem; color: #4ade80 !important; letter-spacing: 0.15em; margin-top: 2px; }
+.sb-logo .dot { display:inline-block; width:8px; height:8px;
+  background:#10b981; border-radius:50%; margin-right:6px;
+  box-shadow: 0 0 8px #10b981; animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── HERO HEADER ──────────────────────────────────────────── */
+.hero {
+  position: relative;
+  border: 1px solid rgba(124,58,237,0.5);
+  border-top: 3px solid #a855f7;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(135deg,#0f0a1e 0%,#0d1a0d 100%);
+  padding: 1.4rem 1.8rem 1.2rem;
+  margin-bottom: 1.6rem;
+  overflow: hidden;
+}
+.hero::after {
+  content:"";
+  position:absolute; top:0; right:0; bottom:0; width:40%;
+  background: radial-gradient(ellipse at right, rgba(16,185,129,0.07) 0%, transparent 70%);
+  pointer-events:none;
+}
+.hero-eyebrow {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.68rem; color: #4ade80;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+.hero-eyebrow span { color: #7c3aed; }
+.hero-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.6rem; font-weight: 900;
+  color: #fff; margin: 0 0 0.3rem;
+  text-shadow: 0 0 30px rgba(168,85,247,0.4);
+}
+.hero-title em { color: #4ade80; font-style: normal; }
+.hero-desc { font-size: 0.9rem; color: #6b7280; line-height: 1.5; margin: 0; }
+
+/* ── TERMINAL RESULTADO ───────────────────────────────────── */
+.terminal {
+  background: #030b03;
+  border: 1px solid #166534;
+  border-left: 4px solid #4ade80;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 0.8rem 0;
+  box-shadow: 0 0 20px rgba(74,222,128,0.1), inset 0 0 30px rgba(0,0,0,0.5);
+  position: relative;
+}
+.terminal::before {
+  content: "OUTPUT";
+  position:absolute; top:-9px; left:14px;
+  background:#030b03; padding: 0 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.62rem; color: #4ade80;
+  letter-spacing: 0.15em;
+}
+.terminal-label { font-size: 0.7rem; color: #16a34a; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.1em; margin-bottom: 0.35rem; }
+.terminal-value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.05rem; color: #4ade80;
+  text-shadow: 0 0 8px rgba(74,222,128,0.5);
+  word-break: break-all; line-height: 1.5;
+}
+.terminal-value::before { content: "> "; color: #16a34a; }
+
+/* ── PANEL DE PASOS ───────────────────────────────────────── */
+.step-panel {
+  background: #0a0014;
+  border: 1px solid rgba(124,58,237,0.4);
+  border-left: 4px solid #7c3aed;
+  border-radius: 8px;
+  padding: 0.9rem 1.1rem;
+  margin: 0.7rem 0;
+  box-shadow: 0 0 16px rgba(124,58,237,0.08);
+}
+.step-panel-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem; color: #a855f7;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+.step-panel-body {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.82rem; color: #d8b4fe; line-height: 1.9;
+}
+
+/* ── ERROR PANEL ──────────────────────────────────────────── */
+.err-panel {
+  background: #140008;
+  border: 1px solid rgba(220,38,38,0.5);
+  border-left: 4px solid #dc2626;
+  border-radius: 8px;
+  padding: 0.85rem 1.1rem; margin: 0.7rem 0;
+}
+.err-panel-title { font-size: 0.68rem; font-family:'Share Tech Mono',monospace; color:#f87171; letter-spacing:.12em; margin-bottom:.25rem; }
+.err-panel-body  { font-size: 0.9rem; color: #fca5a5; }
+
+/* ── INFO PANEL ───────────────────────────────────────────── */
+.info-panel {
+  background: rgba(124,58,237,0.07);
+  border: 1px solid rgba(124,58,237,0.3);
+  border-left: 3px solid #a855f7;
+  border-radius: 8px;
+  padding: 0.7rem 1rem; margin: 0.5rem 0;
+  font-size: 0.87rem; color: #c4b5fd;
+  font-family: 'Rajdhani', sans-serif;
+}
+
+/* ── BOTONES ──────────────────────────────────────────────── */
+.stButton > button {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  background: transparent !important;
+  color: #4ade80 !important;
+  border: 2px solid #4ade80 !important;
+  border-radius: 6px !important;
+  padding: 0.5rem 1.6rem !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 0 10px rgba(74,222,128,0.2), inset 0 0 10px rgba(74,222,128,0.02) !important;
+}
+.stButton > button:hover {
+  background: rgba(74,222,128,0.1) !important;
+  box-shadow: 0 0 22px rgba(74,222,128,0.5), inset 0 0 14px rgba(74,222,128,0.05) !important;
+  color: #86efac !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ── INPUTS ───────────────────────────────────────────────── */
+.stTextInput > div > div > input,
+.stTextArea > div > div > textarea,
+.stNumberInput > div > div > input {
+  background: #0a0a18 !important;
+  border: 1px solid rgba(124,58,237,0.4) !important;
+  border-radius: 6px !important;
+  color: #e9d5ff !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.88rem !important;
+  caret-color: #4ade80;
+}
+.stTextInput > div > div > input:focus,
+.stTextArea > div > div > textarea:focus,
+.stNumberInput > div > div > input:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.18), 0 0 12px rgba(124,58,237,0.2) !important;
+}
+.stTextInput label, .stNumberInput label, .stTextArea label, .stSelectbox label {
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.72rem !important; color: #6b7280 !important;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ── SELECTBOX ────────────────────────────────────────────── */
+.stSelectbox > div > div {
+  background: #0a0a18 !important;
+  border: 1px solid rgba(124,58,237,0.4) !important;
+  border-radius: 6px !important; color: #e9d5ff !important;
+}
+
+/* ── RADIO ────────────────────────────────────────────────── */
+.stRadio > div { gap: 0.3rem !important; flex-wrap: wrap !important; }
+.stRadio > div > label {
+  background: #0a0014 !important;
+  border: 1px solid rgba(124,58,237,0.3) !important;
+  border-radius: 6px !important;
+  padding: 0.3rem 0.75rem !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.78rem !important; color: #a78bfa !important;
+  transition: all 0.15s !important; cursor: pointer !important;
+}
+.stRadio > div > label:hover {
+  border-color: #4ade80 !important; color: #4ade80 !important;
+  box-shadow: 0 0 8px rgba(74,222,128,0.2) !important;
+}
+
+/* ── MÉTRICAS ─────────────────────────────────────────────── */
+[data-testid="stMetricValue"] {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 1.25rem !important; font-weight: 700 !important;
+  color: #4ade80 !important;
+  text-shadow: 0 0 12px rgba(74,222,128,0.5) !important;
+}
+[data-testid="stMetricLabel"] {
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.65rem !important; color: #6b7280 !important;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+[data-testid="metric-container"] {
+  background: #050510 !important;
+  border: 1px solid rgba(124,58,237,0.3) !important;
+  border-top: 2px solid #7c3aed !important;
+  border-radius: 8px !important; padding: 0.8rem 1rem !important;
+  box-shadow: 0 0 12px rgba(124,58,237,0.08) !important;
+}
+
+/* ── DATAFRAME ────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+  border: 1px solid rgba(124,58,237,0.25) !important;
+  border-radius: 8px !important; overflow: hidden;
+}
+.stDataFrame thead th {
+  background: rgba(124,58,237,0.2) !important;
+  color: #a855f7 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.75rem !important; letter-spacing: 0.08em;
+}
+.stDataFrame tbody td {
+  color: #c4b5fd !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  font-size: 0.8rem !important;
+  background: #05050f !important;
+}
+.stDataFrame tbody tr:nth-child(even) td { background: #0a0a1a !important; }
+.stDataFrame tbody tr:hover td { background: rgba(74,222,128,0.04) !important; }
+
+/* ── SLIDER ───────────────────────────────────────────────── */
+.stSlider > div > div > div > div { background: #7c3aed !important; }
+.stSlider > div > div > div { background: rgba(124,58,237,0.2) !important; }
+
+/* ── DIVIDER ──────────────────────────────────────────────── */
+hr { border: none !important; border-top: 1px solid rgba(124,58,237,0.2) !important; }
+
+/* ── st.code ──────────────────────────────────────────────── */
+.stCode, pre { background: #030b03 !important; border-radius: 8px !important; }
+.stCode code, pre code {
+  font-family: 'Share Tech Mono', monospace !important;
+  color: #4ade80 !important; text-shadow: 0 0 6px rgba(74,222,128,0.3);
+}
+
+/* ── PILL ─────────────────────────────────────────────────── */
+.menu-pill {
+  display:inline-block;
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.62rem; letter-spacing:0.15em; text-transform:uppercase;
+  background:rgba(74,222,128,0.08);
+  border:1px solid rgba(74,222,128,0.3);
+  color:#4ade80; padding:2px 10px; border-radius:20px; margin-bottom:0.5rem;
+}
+
+/* ── PASSWORD INPUT ───────────────────────────────────────── */
+input[type="password"] {
+  background: #0a0a18 !important;
+  color: #4ade80 !important;
+  font-family: 'Share Tech Mono', monospace !important;
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #080810; }
+::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a855f7; }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
-# HELPERS DE VISUALIZACIÓN
+# HELPERS
 # ══════════════════════════════════════════════════════════════
-def mostrar_pasos(pasos: list):
-    """Muestra los pasos de una operación en un bloque formateado."""
-    st.markdown("**📋 Proceso paso a paso:**")
-    st.markdown('<div class="step-box">' + "<br>".join(pasos) + '</div>', unsafe_allow_html=True)
-
 def mostrar_resultado(valor, etiqueta: str = "Resultado"):
-    """Muestra el resultado principal destacado."""
-    st.markdown(f'<div class="result-box">✅ <strong>{etiqueta}:</strong> <code>{valor}</code></div>',
-                unsafe_allow_html=True)
+    st.markdown(
+        f'''<div class="terminal">
+          <div class="terminal-label">// {etiqueta}</div>
+          <div class="terminal-value">{valor}</div>
+        </div>''', unsafe_allow_html=True)
+
+def mostrar_pasos(pasos: list):
+    body = "<br>".join(pasos)
+    st.markdown(
+        f'''<div class="step-panel">
+          <div class="step-panel-title">[ proceso paso a paso ]</div>
+          <div class="step-panel-body">{body}</div>
+        </div>''', unsafe_allow_html=True)
 
 def mostrar_error(msg: str):
-    """Muestra un mensaje de error formateado."""
-    st.markdown(f'<div class="error-box">❌ <strong>Error:</strong> {msg}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'''<div class="err-panel">
+          <div class="err-panel-title">!! ERROR</div>
+          <div class="err-panel-body">{msg}</div>
+        </div>''', unsafe_allow_html=True)
+
+def mostrar_info(msg: str):
+    st.markdown(f'<div class="info-panel">◈ {msg}</div>', unsafe_allow_html=True)
 
 def mostrar_tabla(datos: list, titulo: str = ""):
-    """Muestra una lista de diccionarios como tabla de pandas."""
     if datos:
         if titulo:
-            st.markdown(f"**{titulo}**")
+            st.markdown(
+                f'<div style="font-family:monospace;font-size:0.65rem;color:#a855f7;letter-spacing:.12em;text-transform:uppercase;margin:0.8rem 0 0.3rem">[ {titulo} ]</div>',
+                unsafe_allow_html=True)
         st.dataframe(pd.DataFrame(datos), use_container_width=True)
 
+def hero(icono: str, titulo: str, subtitulo: str, pill: str = ""):
+    pill_html = f'<div class="menu-pill">// {pill}</div><br>' if pill else ""
+    titulo_parts = titulo.split(" ", 1)
+    titulo_html = f'<em>{titulo_parts[0]}</em> {titulo_parts[1]}' if len(titulo_parts) > 1 else titulo
+    st.markdown(
+        f'''<div class="hero">
+          {pill_html}
+          <div class="hero-eyebrow"><span>></span> cryptolab <span>/</span> {pill.lower()}</div>
+          <div class="hero-title">{icono} {titulo_html}</div>
+          <p class="hero-desc">{subtitulo}</p>
+        </div>''', unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════
-# SIDEBAR – NAVEGACIÓN
+# SIDEBAR
 # ══════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("## 🔐 Calculadora Criptográfica")
+    st.markdown('''<div class="sb-logo">
+      <div class="brand">CRYPTO<br>LAB</div>
+      <div class="tagline"><span class="dot"></span>ONLINE · UNAB</div>
+    </div>''', unsafe_allow_html=True)
     st.markdown("---")
-    menu_principal = st.selectbox("📂 Menú Principal", [
-        "1. Matemática Modular",
-        "2. Criptografía Clásica",
-        "3. Criptografía Moderna",
-        "4. Algoritmos Hash",
-        "5. Codificación",
-        "6. Protocolo SALT",
-    ])
+
+    menu_opciones = {
+        "[ 01 ]  Matemática Modular":   "1. Matemática Modular",
+        "[ 02 ]  Criptografía Clásica": "2. Criptografía Clásica",
+        "[ 03 ]  Criptografía Moderna": "3. Criptografía Moderna",
+        "[ 04 ]  Algoritmos Hash":      "4. Algoritmos Hash",
+        "[ 05 ]  Codificación":         "5. Codificación",
+        "[ 06 ]  Protocolo SALT":       "6. Protocolo SALT",
+    }
+    menu_label = st.selectbox("_", list(menu_opciones.keys()), label_visibility="collapsed")
+    menu_principal = menu_opciones[menu_label]
+
     st.markdown("---")
-    st.caption("Calculadora académica · UTF-8 · Streamlit")
+    st.markdown('''<div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#374151;text-align:center;line-height:1.8;letter-spacing:0.08em">
+      CALCULADORA ACADÉMICA<br>UTF-8 · STREAMLIT · PYTHON<br>
+      <span style="color:#4ade80">■</span> SISTEMA ACTIVO
+    </div>''', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════
 # SECCIÓN 1 – MATEMÁTICA MODULAR
 # ══════════════════════════════════════════════════════════════
 if menu_principal.startswith("1"):
-    st.markdown('<p class="main-title">🔢 Matemática Modular</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Operaciones de aritmética modular con proceso detallado.</p>', unsafe_allow_html=True)
+    hero('🔢', 'Matemática Modular', 'Operaciones de aritmética modular con proceso detallado.', 'Menú 1')
 
     sub = st.radio("Selecciona la operación:", [
         "1.1 · Módulo (a mod n)",
@@ -202,8 +519,7 @@ if menu_principal.startswith("1"):
 # SECCIÓN 2 – CRIPTOGRAFÍA CLÁSICA
 # ══════════════════════════════════════════════════════════════
 elif menu_principal.startswith("2"):
-    st.markdown('<p class="main-title">📜 Criptografía Clásica</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Cifrados históricos con visualización del proceso letra a letra.</p>', unsafe_allow_html=True)
+    hero('📜', 'Criptografía Clásica', 'Cifrados históricos con visualización del proceso letra a letra.', 'Menú 2')
 
     sub = st.radio("Selecciona el cifrado:", [
         "2.1 · Módulo 27 (alfabeto español)",
@@ -247,7 +563,7 @@ elif menu_principal.startswith("2"):
         c1, c2 = st.columns(2)
         clave  = c1.text_input("Clave", value="Key")
         modo   = c2.selectbox("Modo", modo_opciones)
-        st.info("⚠️ El cifrado y descifrado Vernam son la misma operación XOR. Para descifrar ingresa el texto cifrado (en hex) y la misma clave.")
+        mostrar_info("⚠️ El cifrado y descifrado Vernam son la misma operación XOR. Para descifrar ingresa el texto cifrado (en hex) y la misma clave.")
         if st.button("Ejecutar", key="vernam"):
             res = cifrado_vernam(texto, clave, modo)
             if "error" in res:
@@ -260,7 +576,7 @@ elif menu_principal.startswith("2"):
     # ── 2.4 ATBASH ────────────────────────────────────────────
     elif sub.startswith("2.4"):
         texto = st.text_input("Texto", value="HOLA MUNDO")
-        st.info("ATBASH es simétrico: cifrar y descifrar son la misma operación.")
+        mostrar_info("ATBASH es simétrico: cifrar y descifrar son la misma operación.")
         if st.button("Ejecutar", key="atbash"):
             res = cifrado_atbash(texto)
             mostrar_resultado(res["resultado"])
@@ -298,7 +614,7 @@ elif menu_principal.startswith("2"):
             else:
                 mostrar_resultado(res["resultado"])
                 if modo == "descifrar":
-                    st.info(f"Inverso multiplicativo de a={int(a)} en Z_26: a⁻¹ = {res['a_inv']}")
+                    mostrar_info("Inverso multiplicativo de a={int(a)} en Z_26: a⁻¹ = {res['a_inv']}")
                 mostrar_tabla(res["tabla"], "📊 Proceso letra a letra")
 
     # ── 2.7 Sustitución Simple ───────────────────────────────
@@ -323,8 +639,7 @@ elif menu_principal.startswith("2"):
 # SECCIÓN 3 – CRIPTOGRAFÍA MODERNA
 # ══════════════════════════════════════════════════════════════
 elif menu_principal.startswith("3"):
-    st.markdown('<p class="main-title">🛡️ Criptografía Moderna</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Diffie-Hellman, RSA y exponenciación rápida con proceso completo.</p>', unsafe_allow_html=True)
+    hero('🛡️', 'Criptografía Moderna', 'Diffie-Hellman, RSA y exponenciación rápida con proceso completo.', 'Menú 3')
 
     sub = st.radio("Selecciona el algoritmo:", [
         "3.1 · Diffie-Hellman",
@@ -374,7 +689,7 @@ elif menu_principal.startswith("3"):
                 col2.metric("φ(n)", res["phi"])
                 col3.metric("d (clave privada)", res["d"])
                 col4.metric("✅ Descifrado", res["descifrado"])
-                st.info(f"🔓 Clave pública: (e={res['e']}, n={res['n']})   |   🔒 Clave privada: (d={res['d']}, n={res['n']})")
+                mostrar_info(f"🔓 Clave pública: (e={res['e']}, n={res['n']})")
                 mostrar_pasos(res["pasos"])
 
     # ── 3.3 Exponenciación Rápida ────────────────────────────
@@ -401,8 +716,7 @@ elif menu_principal.startswith("3"):
 # SECCIÓN 4 – ALGORITMOS HASH
 # ══════════════════════════════════════════════════════════════
 elif menu_principal.startswith("4"):
-    st.markdown('<p class="main-title">🔍 Algoritmos Hash</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Calcula hashes criptográficos. Soporta cualquier texto UTF-8.</p>', unsafe_allow_html=True)
+    hero('🔍', 'Algoritmos Hash', 'Calcula hashes criptográficos. Soporta cualquier texto UTF-8.', 'Menú 4')
 
     sub = st.radio("Selecciona el algoritmo:", [
         "4.1 · MD5 (128 bits)",
@@ -431,8 +745,7 @@ elif menu_principal.startswith("4"):
 # SECCIÓN 5 – CODIFICACIÓN
 # ══════════════════════════════════════════════════════════════
 elif menu_principal.startswith("5"):
-    st.markdown('<p class="main-title">📡 Codificación / Decodificación</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Convierte textos entre distintas representaciones. Soporte UTF-8 completo.</p>', unsafe_allow_html=True)
+    hero('📡', 'Codificación / Decodificación', 'Convierte textos entre distintas representaciones. Soporte UTF-8 completo.', 'Menú 5')
 
     sub = st.radio("Selecciona la codificación:", [
         "5.1 · ASCII / Unicode decimal",
@@ -521,8 +834,7 @@ elif menu_principal.startswith("5"):
 # SECCIÓN 6 – PROTOCOLO SALT
 # ══════════════════════════════════════════════════════════════
 elif menu_principal.startswith("6"):
-    st.markdown('<p class="main-title">🧂 Protocolo SALT</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Demuestra cómo el uso de SALT evita ataques de tabla arcoíris.</p>', unsafe_allow_html=True)
+    hero('🧂', 'Protocolo SALT', 'Demuestra cómo el uso de SALT evita ataques de tabla arcoíris.', 'Menú 6')
 
     sub = st.radio("Selecciona el algoritmo:", [
         "6.1 · MD5 + SALT",
@@ -561,4 +873,5 @@ elif menu_principal.startswith("6"):
                 "Hash resultante": r["hash"],
             } for r in res["resultados"]]
             st.dataframe(pd.DataFrame(tabla_display), use_container_width=True)
-            st.info("🔍 Observa que el mismo password con distintos SALTs produce hashes completamente diferentes.")
+            mostrar_info("🔍 Observa que el mismo password con distintos SALTs produce hashes completamente diferentes.")
+            
